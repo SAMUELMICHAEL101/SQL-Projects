@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="stores.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="3839"/><column_width id="4" width="0"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="customers" custom_title="0" dock_id="1" table="4,9:maincustomers"/><dock_state state="000000ff00000000fd00000001000000020000000000000000fc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000ffffffff0000011300ffffff000000000000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="CUSTOMER &amp; PRODUCT ANALYSIS">SELECT 
+    'customers' AS table_name, 
+    COUNT(*) AS number_of_attributes, 
+    (SELECT COUNT(*) FROM customers) AS number_of_rows 
+FROM pragma_table_info('customers')
+UNION ALL
+SELECT 
+    'employees' AS table_name, 
+    COUNT(*) AS number_of_attributes, 
+    (SELECT COUNT(*) FROM employees) AS number_of_rows 
+FROM pragma_table_info('employees')
+UNION ALL
+SELECT 
+    'offices' AS table_name, 
+    COUNT(*) AS number_of_attributes, 
+    (SELECT COUNT(*) FROM offices) AS number_of_rows 
+FROM pragma_table_info('offices')
+UNION ALL
+SELECT 
+    'orderdetails' AS table_name, 
+    COUNT(*) AS number_of_attributes, 
+    (SELECT COUNT(*) FROM orderdetails) AS number_of_rows 
+FROM pragma_table_info('orderdetails')
+UNION ALL
+SELECT 
+    'orders' AS table_name, 
+    COUNT(*) AS number_of_attributes, 
+    (SELECT COUNT(*) FROM orders) AS number_of_rows 
+FROM pragma_table_info('orders')
+UNION ALL
+SELECT 
+    'payments' AS table_name, 
+    COUNT(*) AS number_of_attributes, 
+    (SELECT COUNT(*) FROM payments) AS number_of_rows 
+FROM pragma_table_info('payments')
+UNION ALL
+SELECT 
+    'productlines' AS table_name, 
+    COUNT(*) AS number_of_attributes, 
+    (SELECT COUNT(*) FROM productlines) AS number_of_rows 
+FROM pragma_table_info('productlines')
+UNION ALL
+SELECT 
+    'products' AS table_name, 
+    COUNT(*) AS number_of_attributes, 
+    (SELECT COUNT(*) FROM products) AS number_of_rows 
+FROM pragma_table_info('products');
+
+
+-- Full query to display priority products for restocking using the IN operator
+
+-- Create a Common Table Expression (CTE) to calculate low stock
+WITH LowStock AS (
+    SELECT 
+        productCode,
+        ROUND(AVG(quantityInStock), 2) AS avgStock
+    FROM products
+    GROUP BY productCode
+    ORDER BY avgStock
+    LIMIT 10
+),
+
+-- Create another CTE to calculate product performance
+ProductPerformance AS (
+    SELECT 
+        productCode,
+        ROUND(SUM(quantityOrdered * priceEach), 2) AS performance
+    FROM orderdetails
+    GROUP BY productCode
+    ORDER BY performance DESC
+    LIMIT 10
+)
+
+-- Select priority products for restocking
+SELECT DISTINCT productCode
+FROM products
+WHERE productCode IN (SELECT productCode FROM LowStock)
+   OR productCode IN (SELECT productCode FROM ProductPerformance);
+   
+   
+-- 2. Matching Marketing and Communication Strategies to Customer Behavior?
+SELECT 
+    c.customerNumber,
+    SUM(od.quantityOrdered * (od.priceEach - p.buyPrice)) AS profit
+FROM 
+    customers c
+    JOIN orders o ON c.customerNumber = o.customerNumber
+    JOIN orderdetails od ON o.orderNumber = od.orderNumber
+    JOIN products p ON od.productCode = p.productCode
+GROUP BY 
+    c.customerNumber;
+	
+	
+-- Finding the VIP and Less Engaged Customers
+WITH CustomerProfits AS (
+    SELECT 
+        c.customerNumber,
+        c.contactLastName,
+        c.contactFirstName,
+        c.city,
+        c.country,
+        SUM(od.quantityOrdered * (od.priceEach - p.buyPrice)) AS profit
+    FROM 
+        customers c
+        LEFT JOIN orders o ON c.customerNumber = o.customerNumber
+        LEFT JOIN orderdetails od ON o.orderNumber = od.orderNumber
+        LEFT JOIN products p ON od.productCode = p.productCode
+    GROUP BY 
+        c.customerNumber, c.contactLastName, c.contactFirstName, c.city, c.country
+)
+
+SELECT 
+    contactLastName,
+    contactFirstName,
+    city,
+    country,
+    COALESCE(profit, 0) AS profit
+FROM 
+    CustomerProfits
+ORDER BY 
+    profit
+LIMIT 5;
+
+
+-- Question 3: How Much Can We Spend on Acquiring New Customers?
+WITH CustomerProfits AS (
+    SELECT 
+        c.customerNumber,
+        c.contactLastName,
+        c.contactFirstName,
+        c.city,
+        c.country,
+        SUM(od.quantityOrdered * (od.priceEach - p.buyPrice)) AS profit
+    FROM 
+        customers c
+        LEFT JOIN orders o ON c.customerNumber = o.customerNumber
+        LEFT JOIN orderdetails od ON o.orderNumber = od.orderNumber
+        LEFT JOIN products p ON od.productCode = p.productCode
+    GROUP BY 
+        c.customerNumber, c.contactLastName, c.contactFirstName, c.city, c.country
+)
+
+SELECT 
+    AVG(profit) AS average_profit
+FROM 
+    CustomerProfits;
+
+	
+	
+-- Question 1: Which products should we order more of or less of?
+-- Vintage cars and motorcycles are the priority for restocking. 
+-- They sell frequently, and they are the highest-performance products.
+
+-- Question 2: How should we match marketing and communication strategies to customer behaviors?
+-- VIP customers
+-- Least engaged customers
+
+-- Question 3: How much can we spend on acquiring new customers?</sql><current_tab id="0"/></tab_sql></sqlb_project>
